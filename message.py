@@ -80,4 +80,5 @@ class Message:
     def encode(self) -> bytes:
         """Return length + type + payload, ready to send on a socket."""
         # [length][type][payload]
-        raise NotImplementedError
+        struct_format = ">IB" + str(len(self._payload)) + "s"
+        return struct.pack(struct_format, len(self._payload) + 1, self._type, self._payload)

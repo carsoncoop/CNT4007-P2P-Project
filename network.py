@@ -1,8 +1,7 @@
-"""Sockets, threads and connection setup. (Owner: Person A)"""
-
 import socket
 import threading
 import queue
+import struct
 
 from message import Message
 from listener import MessageListener
