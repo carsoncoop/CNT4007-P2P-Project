@@ -14,7 +14,6 @@ REQUEST = 6
 PIECE = 7
 
 # represents one message: type + payload
-# 
 class Message:
     """Immutable message. payload is always bytes (b"" when there is none)."""
 

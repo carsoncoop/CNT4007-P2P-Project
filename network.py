@@ -8,47 +8,77 @@ from listener import MessageListener
 
 
 def recv_exact(sock: socket.socket, n: int) -> bytes:
-    """Read exactly n bytes, looping because recv() may return fewer.
-
-    Raises ConnectionError if the peer closes before n bytes arrive.
-    """
-    # TODO
-    raise NotImplementedError
+    buf = bytearray()
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            raise ConnectionError(f"Socket closed with {n - len(buf)} bytes left to read")
+        buf.extend(chunk)
+    return bytes(buf)
 
 
 def read_message(sock: socket.socket) -> Message:
-    """Read one length-prefixed message from the socket."""
-    # TODO: read 4-byte length, then type byte, then (length - 1) payload bytes
-    raise NotImplementedError
+    length = struct.unpack('!I', recv_exact(sock, 4))[0]
+    msg_type = recv_exact(sock, 1)[0]
+    payload = recv_exact(sock, length - 1)
+    return Message(msg_type, payload)
 
 
 class NeighborConnection:
-    """One socket to one neighbor, with a reader thread and a writer thread."""
-
     def __init__(self, neighbor_id: int, sock: socket.socket, listener: MessageListener):
-        # TODO: store fields, create the outgoing queue.Queue
         self.neighbor_id = neighbor_id
-        raise NotImplementedError
+        self.sock = sock
+        self.listener = listener
+        self.is_closed = False
+        self.writer_queue = queue.Queue()
 
     def start(self) -> None:
-        """Start the reader and writer threads."""
-        raise NotImplementedError
+        if self.is_closed:
+            raise RuntimeError("Cannot start a closed connection")
+        self.reader_thread = threading.Thread(target=self._reader_loop, daemon=True)
+        self.writer_thread = threading.Thread(target=self._writer_loop, daemon=True)
+        self.reader_thread.start()
+        self.writer_thread.start()
+
 
     def send(self, msg: Message) -> None:
-        """Non-blocking: put msg on the writer queue. Silently drop if closed."""
-        raise NotImplementedError
+        if not self.is_closed:
+            self.writer_queue.put(msg)
 
     def close(self) -> None:
         """Stop both threads and close the socket."""
-        raise NotImplementedError
+        if self.is_closed:
+            return                      
+        self.is_closed = True
+        self.writer_queue.put(None)     
+        try:
+            self.sock.close()           
+        except OSError:
+            pass
 
     def _reader_loop(self) -> None:
         """Read messages and call listener.on_message until the socket closes."""
-        raise NotImplementedError
+        try:
+            while not self.is_closed:
+                msg = read_message(self.sock)
+                self.listener.on_message(self.neighbor_id, msg)
+        except OSError:
+            pass                        
+        finally:
+            self.close()
+            self.listener.on_disconnected(self.neighbor_id)
 
     def _writer_loop(self) -> None:
         """Take messages off the queue and write them to the socket."""
-        raise NotImplementedError
+        while not self.is_closed:
+            msg = self.writer_queue.get()   
+            if msg is None:                 
+                break
+            try:
+                self.sock.sendall(msg.encode())
+            except OSError:
+                self.close()
+                break
 
 
 class ConnectionManager:
