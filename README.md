@@ -1,9 +1,5 @@
 CTN4007-P2P-Project
 <<<<<<< HEAD
-
-Eddy Chen
-Carson Coop
-Howard Miller
 =======
 Team Members Names
 - Howard Miller
