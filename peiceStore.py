@@ -28,6 +28,37 @@ class PieceStore:
                 f.truncate(common.file_size)  # preallocate; pieces land by offset
             self.bitfield = Bitfield(common.num_pieces)
 
+    # ----- TODO (Carson): stubs that peerProcess.py already calls -----
+    # These are on Carson's task list. peerProcess.py is wired up to use them,
+    # so fill them in with these names (or update peerProcess.py to match).
+
+    # Pick a random piece that their_bitfield has, we don't have, and we
+    # haven't already requested from anyone. Mark it as requested and return
+    # its index, or return None if there's nothing to ask for.
+    def pick_request(self, their_bitfield):
+        raise NotImplementedError("TODO (Carson): random piece selection")
+
+    # Forget a pending request so the piece can be asked for again
+    # (called when the neighbor chokes us or disconnects before sending it).
+    def release_request(self, index):
+        raise NotImplementedError("TODO (Carson): pending request tracking")
+
+    # True if we have every piece of the file.
+    def is_complete(self):
+        raise NotImplementedError("TODO (Carson): do I have the whole file?")
+
+    # ----- small helpers used by peerProcess.py -----
+
+    # how many pieces we have (used to decide whether to send a bitfield)
+    def piece_count(self):
+        with self._lock:
+            return self.bitfield.count()
+
+    # our bitfield as bytes, ready to put in a BITFIELD message
+    def bitfield_bytes(self):
+        with self._lock:
+            return self.bitfield.to_bytes()
+
     def has_piece(self, index):
         with self._lock:
             return self.bitfield.has(index)
