@@ -86,6 +86,9 @@ class NeighborState:
     # our_bitfield, our own Bitfield object), and send them INTERESTED or
     # NOT_INTERESTED. Called after every HAVE, BITFIELD, and piece we
     # download, so it should only send a message when the answer changes.
+    # Start with "interested" as None (we haven't told them anything yet), so the
+    # FIRST decision is always sent. The spec requires 'not interested' after a
+    # bitfield with nothing new. After that, only send when the answer changes.
     def update_our_interest(self, our_bitfield):
         raise NotImplementedError("TODO (Eddy): interested tracking")
 

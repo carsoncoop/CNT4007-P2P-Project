@@ -5,18 +5,13 @@
 # peer logic (choking, piece picking, etc.); that's covered by
 # test_end_to_end.py.
 #
-# Run from the repo root:
-#   python3 -m unittest discover -s tests -v
-#
 # The test groups go from simplest to most complex:
 #   TestHandshake          - just bytes, no sockets
 #   TestMessageEncoding    - just bytes, no sockets
 #   TestSocketLoopback     - two real sockets on this machine, no threads
 #   TestNeighborConnection - real sockets plus the reader/writer threads
 #   TestConnectionManager  - several "peers" connecting to each other
-#
-# If something breaks, the first failing group usually tells you which layer
-# the bug is in.
+
 import os
 import socket
 import struct
@@ -50,9 +45,9 @@ def all_messages():
     ]
 
 
-# Ask the OS for a port nobody is using. Binding to port 0 makes the OS pick
+# ask the OS for a port nobody is using. Binding to port 0 makes the OS pick
 # a free one; we read which one it picked and close the socket. Using random
-# free ports means the tests don't fail if some fixed port is already taken.
+# free ports means the tests will just pass if a fixed port is already in use
 def free_port():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -61,12 +56,11 @@ def free_port():
     return port
 
 
-# Keep checking until check() is true or we run out of time.
-#
-# The network code runs on background threads, so after we send something
+# keep checking until check() is true or we run out of time
+# the network code runs on background threads, so after we send something
 # the result doesn't show up instantly. Instead of guessing with a fixed
 # sleep (too short = random failures, too long = slow tests), we check every
-# 10ms and move on as soon as it's true.
+# 10ms and move on as soon as it's true
 def wait_until(check, timeout=5.0):
     end = time.time() + timeout
     while time.time() < end:
@@ -88,9 +82,9 @@ def answer_with_wrong_id(server):
     sock.close()
 
 
-# A fake listener that just saves everything it gets, so the tests can look
+# a fake listener that just saves everything it gets, so the tests can look
 # at what arrived. It stands in for the Peer class, which lets us test the
-# network code without any of the peer logic.
+# network code with no peer logic at all
 class SavingListener(MessageListener):
     def __init__(self):
         self.messages = []

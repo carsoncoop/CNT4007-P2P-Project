@@ -4,17 +4,13 @@
 # checks that the file actually gets shared.
 #
 # What it does:
-#   1. Makes a temporary folder with its own Common.cfg and PeerInfo.cfg.
-#   2. Creates a random file and gives it to the peers marked with a 1.
-#   3. Starts a separate peerProcess.py for each peer, in file order.
-#   4. Waits for every process to exit on its own (this tests termination).
+#   1. Creates a temporary folder with its own Common.cfg and PeerInfo.cfg
+#   2. Creates a random file and hands it to the peers that have a 1
+#   3. Starts a separate peerProcess.py for each peer in file order
+#   4. Waits for each process to exit on its own (this tests termination)
 #   5. Checks every peer ended up with a byte-for-byte copy of the file, and
-#      that each log has the right connection lines.
+#      that each log has the correct connection lines
 #
-# The temporary folder is deleted at the end, so nothing is left behind.
-#
-# Run from the repo root:
-#   python3 -m unittest tests/test_end_to_end.py -v
 import os
 import socket
 import subprocess

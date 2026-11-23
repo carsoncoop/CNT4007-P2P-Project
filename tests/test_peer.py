@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bitfield import Bitfield
 from config import CommonConfig, PeerInfo
-from message import Message, REQUEST, PIECE
+from message import Message, REQUEST, PIECE, INTERESTED, NOT_INTERESTED
 from peerProcess import Peer
 
 MY_ID = 1001
@@ -60,6 +60,14 @@ class FakeConnection:
                 indexes.append(msg.piece_index())
         return indexes
 
+    # just the INTERESTED / NOT_INTERESTED messages, in the order they were sent
+    def interest_messages(self):
+        found = []
+        for msg in self.sent:
+            if msg.type == INTERESTED or msg.type == NOT_INTERESTED:
+                found.append(msg.type)
+        return found
+
 
 class PeerTestCase(unittest.TestCase):
     # Make a Peer in a temporary folder. The ConnectionManager and ChokeManager
@@ -94,6 +102,45 @@ class PeerTestCase(unittest.TestCase):
         bits = Bitfield(num_pieces, full=True).to_bytes()
         self.peer.on_message(neighbor_id, Message.bitfield(bits))
         return conn
+
+
+# The spec says: after getting a neighbor's bitfield, send 'interested' if they
+# have a piece we don't, "Otherwise, it sends 'not interested' message."
+@unittest.skip(NEEDS_STUBS)
+class TestInterest(PeerTestCase):
+    # We have the whole file, and the neighbor's bitfield only has piece 0,
+    # which we already have. Nothing new, so we must send NOT_INTERESTED.
+    # This catches the bug where "interested" starts as False, so the first
+    # answer (False) looks like "no change" and nothing gets sent.
+    def test_not_interested_after_bitfield_with_nothing_new(self):
+        self.make_peer(num_pieces=3, have_file=True)
+        conn = FakeConnection(1002)
+        self.peer.on_connected(conn)
+        theirs = Bitfield(3)
+        theirs.set(0)
+        self.peer.on_message(1002, Message.bitfield(theirs.to_bytes()))
+
+        self.assertEqual(conn.interest_messages(), [NOT_INTERESTED])
+
+    # We have nothing and they have everything, so we must send INTERESTED.
+    def test_interested_after_bitfield_with_something_new(self):
+        self.make_peer(num_pieces=3, have_file=False)
+        conn = self.connect_seed(1002, 3)
+
+        self.assertEqual(conn.interest_messages(), [INTERESTED])
+
+    # Once we've said INTERESTED, a HAVE for another piece we need doesn't
+    # change our answer, so we shouldn't send INTERESTED again.
+    def test_interest_not_repeated(self):
+        self.make_peer(num_pieces=3, have_file=False)
+        conn = FakeConnection(1002)
+        self.peer.on_connected(conn)
+        theirs = Bitfield(3)
+        theirs.set(0)
+        self.peer.on_message(1002, Message.bitfield(theirs.to_bytes()))
+        self.peer.on_message(1002, Message.have(1))
+
+        self.assertEqual(conn.interest_messages(), [INTERESTED])
 
 
 @unittest.skip(NEEDS_STUBS)
