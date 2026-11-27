@@ -1,8 +1,10 @@
-"""This file does the parsing for Common.cfg and PeerInfo.cfg."""
+#Reads Common.cfg and PeerInfo.cfg so the rest of the program doesn't have
+# to deal with parsing text files.
 import math
 from dataclasses import dataclass
 
 
+# everything from Common.cfg
 @dataclass
 class CommonConfig:
     num_preferred_neighbors: int
@@ -12,12 +14,15 @@ class CommonConfig:
     file_size: int
     piece_size: int
 
+    # file size / piece size, rounded up. For the spec example that's
+    # 10000232 / 32768 = 306 pieces
     @property
     def num_pieces(self):
         return math.ceil(self.file_size / self.piece_size)
 
+    # Every piece is piece_size bytes except the last one, which is just
+    # whatever is left over (5992 bytes in the spec example).
     def piece_length(self, index):
-        """Size in bytes of piece `index`; the last piece may be shorter."""
         if not 0 <= index < self.num_pieces:
             raise IndexError(f"piece index {index} out of range")
         if index == self.num_pieces - 1:
@@ -25,6 +30,7 @@ class CommonConfig:
         return self.piece_size
 
 
+# one line from PeerInfo.cfg
 @dataclass
 class PeerInfo:
     peer_id: int
@@ -33,6 +39,7 @@ class PeerInfo:
     has_file: bool
 
 
+# name in the cfg file -> (our field name, what type to convert it to)
 _COMMON_KEYS = {
     "NumberOfPreferredNeighbors": ("num_preferred_neighbors", int),
     "UnchokingInterval": ("unchoking_interval", int),
@@ -43,6 +50,9 @@ _COMMON_KEYS = {
 }
 
 
+# Each line looks like "Name value". Blank lines get skipped. Anything else
+# that looks off raises an error right away, so a typo in the cfg shows up at
+# startup instead of breaking something later.
 def load_common(path="Common.cfg"):
     values = {}
     with open(path) as f:
@@ -54,14 +64,17 @@ def load_common(path="Common.cfg"):
                 raise ValueError(f"bad line in {path}: {line.strip()!r}")
             field, convert = _COMMON_KEYS[parts[0]]
             values[field] = convert(parts[1])
+    # make sure none of the settings got left out
     missing = {name for name, _ in _COMMON_KEYS.values()} - values.keys()
     if missing:
         raise ValueError(f"{path} is missing: {sorted(missing)}")
     return CommonConfig(**values)
 
 
+# Each line looks like "id host port hasFile", where hasFile is 1 or 0.
+# Peers stay in the same order as the file, since that order decides who
+# connects to who.
 def load_peers(path="PeerInfo.cfg"):
-    """Return peers in file order (order decides who connects to whom)."""
     peers = []
     with open(path) as f:
         for line in f:
@@ -75,6 +88,7 @@ def load_peers(path="PeerInfo.cfg"):
     return peers
 
 
+# find one peer by its id
 def get_peer(peers, peer_id):
     for p in peers:
         if p.peer_id == peer_id:
